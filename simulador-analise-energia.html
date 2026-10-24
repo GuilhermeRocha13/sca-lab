@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SCA-Lab: simulador de análise de energia</title>
+<style>
+:root{
+  color-scheme:dark;
+  --bg:#080B10; --bg2:#0C1118; --panel:#0F151D; --panel2:#141C26; --line:rgba(255,255,255,.08); --line2:rgba(255,255,255,.14);
+  --ink:#E9EFF6; --sub:#93A3B5; --faint:#5F6F81;
+  --accent:#34D399; --amber:#F2A93B; --slate:#8A9AAC;
+  --danger:#FF6B72; --danger-bg:rgba(255,107,114,.12); --safe:#3DDC97; --safe-bg:rgba(61,220,151,.12); --warn:#F2A93B; --warn-bg:rgba(242,169,59,.12);
+  --run:#34D399; --run-ink:#042418; --shadow:0 1px 0 rgba(255,255,255,.03) inset, 0 12px 32px rgba(0,0,0,.35);
+  --mono:'JetBrains Mono','SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace;
+  --sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){
+    color-scheme:light;
+    --bg:#F3F5F8; --bg2:#EBEFF4; --panel:#FFFFFF; --panel2:#F5F7FA; --line:rgba(15,23,32,.10); --line2:rgba(15,23,32,.18);
+    --ink:#0F1720; --sub:#4F5F70; --faint:#7B8A99;
+    --accent:#0A7A52; --amber:#B86E00; --slate:#5C6B7B;
+    --danger:#C42B36; --danger-bg:rgba(196,43,54,.09); --safe:#0A7A52; --safe-bg:rgba(10,122,82,.10); --warn:#9A5B00; --warn-bg:rgba(184,110,0,.10);
+    --run:#0A7A52; --run-ink:#FFFFFF; --shadow:0 1px 2px rgba(15,23,32,.06), 0 8px 24px rgba(15,23,32,.06);
+  }
+}
+:root[data-theme="light"]{
+  color-scheme:light;
+  --bg:#F3F5F8; --bg2:#EBEFF4; --panel:#FFFFFF; --panel2:#F5F7FA; --line:rgba(15,23,32,.10); --line2:rgba(15,23,32,.18);
+  --ink:#0F1720; --sub:#4F5F70; --faint:#7B8A99;
+  --accent:#0A7A52; --amber:#B86E00; --slate:#5C6B7B;
+  --danger:#C42B36; --danger-bg:rgba(196,43,54,.09); --safe:#0A7A52; --safe-bg:rgba(10,122,82,.10); --warn:#9A5B00; --warn-bg:rgba(184,110,0,.10);
+  --run:#0A7A52; --run-ink:#FFFFFF; --shadow:0 1px 2px rgba(15,23,32,.06), 0 8px 24px rgba(15,23,32,.06);
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.5;min-height:100vh;
+  background-image:radial-gradient(900px 400px at 85% -10%, color-mix(in srgb, var(--accent) 9%, transparent), transparent 70%);background-repeat:no-repeat}
+.wrap{max-width:1180px;margin:0 auto;padding:28px 24px 56px;padding-left:max(24px,env(safe-area-inset-left));padding-right:max(24px,env(safe-area-inset-right))}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+
+/* cabeçalho */
+.top{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:22px}
+.brand{display:flex;gap:14px;align-items:center}
+.logo{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;background:linear-gradient(145deg,var(--accent),#14B8A6);color:var(--run-ink);flex:none}
+.logo svg{width:22px;height:22px}
+h1{font-size:21px;line-height:1.2;margin:0;font-weight:680;letter-spacing:-.01em}
+.sub{color:var(--sub);font-size:13px;margin-top:2px;max-width:640px}
+.iconbtn{display:inline-flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:8px 12px;font:inherit;font-size:12.5px;cursor:pointer;transition:border-color .15s, background .15s}
+.iconbtn:hover{border-color:var(--line2);background:var(--panel2)}
+.iconbtn svg{width:16px;height:16px}
+
+/* controles */
+.controls{display:flex;flex-wrap:wrap;gap:18px 28px;align-items:flex-end;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px;box-shadow:var(--shadow)}
+.field label,.field .lbl{display:block;font-size:11.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--sub);margin-bottom:7px}
+.seg{display:inline-flex;background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:3px;gap:2px}
+.seg button{background:transparent;border:0;color:var(--sub);padding:8px 14px;border-radius:8px;font:inherit;font-size:13px;font-weight:550;cursor:pointer;transition:background .15s,color .15s}
+.seg button:hover{color:var(--ink)}
+.seg button.on{background:var(--panel);color:var(--ink);box-shadow:0 0 0 1px var(--line2)}
+.seg button[data-v="unprotected"].on{color:var(--danger)}
+.seg button[data-v="masked"].on{color:var(--safe)}
+.num{display:flex;align-items:center;background:var(--bg2);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.num input{background:transparent;border:0;color:var(--ink);font:inherit;font-family:var(--mono);font-size:14px;width:104px;padding:9px 12px;outline-offset:-2px}
+.num span{padding:0 12px;color:var(--faint);font-size:12px;border-left:1px solid var(--line)}
+.hint{font-size:11.5px;color:var(--faint);margin-top:6px}
+.run{margin-left:auto;display:inline-flex;align-items:center;gap:9px;background:var(--run);color:var(--run-ink);border:0;border-radius:11px;padding:11px 20px;font:inherit;font-weight:650;font-size:14px;cursor:pointer;transition:transform .12s, filter .15s}
+.run svg{width:16px;height:16px}
+.run:hover:not(:disabled){filter:brightness(1.08);transform:translateY(-1px)}
+.run:active:not(:disabled){transform:none}
+.run:disabled{opacity:.55;cursor:progress}
+
+/* resultados */
+#results{margin-top:18px}
+.empty{background:var(--panel);border:1px dashed var(--line2);border-radius:14px;padding:44px 24px;text-align:center;color:var(--sub)}
+.empty b{display:block;color:var(--ink);font-size:15px;margin-bottom:6px}
+.fade{animation:fade .28s ease both}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.banner{display:flex;gap:16px;align-items:center;border-radius:14px;padding:16px 20px;border:1px solid var(--line);background:var(--panel);box-shadow:var(--shadow);position:relative;overflow:hidden}
+.banner::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--tone)}
+.banner .ic{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:var(--tone-bg);color:var(--tone);flex:none}
+.banner .ic svg{width:22px;height:22px}
+.banner h2{margin:0;font-size:18px;font-weight:660;letter-spacing:-.01em}
+.banner p{margin:2px 0 0;color:var(--sub);font-size:13px}
+.tone-danger{--tone:var(--danger);--tone-bg:var(--danger-bg)}
+.tone-safe{--tone:var(--safe);--tone-bg:var(--safe-bg)}
+.tone-warn{--tone:var(--warn);--tone-bg:var(--warn-bg)}
+
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:12px}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 16px 14px;display:flex;flex-direction:column;gap:6px;min-width:0;transition:border-color .15s, transform .15s}
+.kpi:hover{border-color:var(--line2);transform:translateY(-1px)}
+.kpi .k{font-size:11.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--sub);display:flex;justify-content:space-between;gap:8px;align-items:center}
+.kpi .v{font-size:30px;font-weight:700;letter-spacing:-.02em;line-height:1.1;font-variant-numeric:tabular-nums}
+.kpi .v small{font-size:14px;font-weight:550;color:var(--sub);letter-spacing:0;margin-left:4px}
+.kpi .d{font-size:12.5px;color:var(--sub)}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:650;padding:3px 9px;border-radius:999px;background:var(--tone-bg);color:var(--tone);white-space:nowrap}
+.chip::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.meter{position:relative;height:8px;border-radius:99px;background:var(--bg2);border:1px solid var(--line);margin:4px 0 2px}
+.meter i{position:absolute;left:0;top:0;bottom:0;border-radius:99px;background:var(--tone);width:0;transition:width .7s cubic-bezier(.2,.8,.2,1)}
+.meter b{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--ink);opacity:.7;border-radius:2px}
+.meter-l{display:flex;justify-content:space-between;font-size:11px;color:var(--faint);font-variant-numeric:tabular-nums}
+
+.grid{display:grid;grid-template-columns:1fr;gap:12px;margin-top:12px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 18px 16px;min-width:0}
+.card h3{margin:0;font-size:15px;font-weight:650;letter-spacing:-.005em}
+.card .insight{margin:4px 0 12px;color:var(--sub);font-size:13px;max-width:880px}
+.card .insight b{color:var(--ink);font-weight:650}
+.plot{position:relative}
+canvas{display:block;width:100%}
+#cCorr{height:260px}#cTrace{height:200px}
+.kpi .top2{display:flex;justify-content:space-between;align-items:flex-end;gap:8px;flex-wrap:wrap}
+.tip{position:absolute;pointer-events:none;z-index:2;background:var(--panel2);border:1px solid var(--line2);border-radius:9px;padding:7px 10px;font-size:12px;line-height:1.45;box-shadow:0 8px 24px rgba(0,0,0,.28);opacity:0;transition:opacity .12s;white-space:nowrap;font-variant-numeric:tabular-nums}
+.tip.show{opacity:1}
+.tip b{font-weight:650}
+.guide{position:absolute;top:0;width:1px;pointer-events:none;background:var(--line2);opacity:0}
+.guide.show{opacity:1}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px;color:var(--sub);margin-top:10px}
+.legend span{display:inline-flex;align-items:center;gap:7px}
+.sw{width:12px;height:4px;border-radius:2px;display:inline-block}
+.two{display:grid;grid-template-columns:1.25fr 1fr;gap:12px}
+
+#cmpBox{overflow-x:auto}
+table.cmp{width:100%;min-width:480px;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
+table.cmp th{font-size:11.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--sub);text-align:left;padding:0 10px 8px 0;border-bottom:1px solid var(--line)}
+table.cmp td{padding:10px 10px 10px 0;border-bottom:1px solid var(--line);vertical-align:middle}
+table.cmp tr:last-child td{border-bottom:0}
+table.cmp td.mut{color:var(--faint)}
+.cur td:first-child{font-weight:650}
+
+details.card{padding:0}
+details.card summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px;border-radius:14px}
+details.card summary::-webkit-details-marker{display:none}
+details.card summary .chev{transition:transform .2s;color:var(--sub)}
+details.card[open] summary .chev{transform:rotate(180deg)}
+details.card .body{padding:0 18px 16px}
+.tests{list-style:none;margin:0;padding:0;font-size:13px;display:grid;gap:8px}
+.tests li{display:flex;gap:10px;align-items:baseline}
+.tests .mk{font-family:var(--mono);font-weight:700;min-width:2.6em;font-size:12px}
+.tests .mk.ok{color:var(--safe)} .tests .mk.bad{color:var(--danger)}
+.tests code{font-family:var(--mono);font-size:11.5px;color:var(--sub);word-break:break-all;margin-left:6px}
+footer{margin-top:24px;font-size:12px;color:var(--faint);line-height:1.6;max-width:880px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+@media(max-width:980px){.kpis{grid-template-columns:repeat(2,1fr)}.two{grid-template-columns:1fr}}
+@media(max-width:560px){
+  .wrap{padding:18px 16px 40px}
+  .top{flex-wrap:wrap}
+  .kpis{grid-template-columns:1fr}
+  .run{margin-left:0;width:100%;justify-content:center}
+  .seg{display:flex}.seg button{flex:1}
+  .banner{align-items:flex-start}
+}
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="top">
+  <div class="brand">
+    <div class="logo" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h4l3-8 4 16 3-8h6"/></svg></div>
+    <div>
+      <h1>SCA-Lab</h1>
+      <div class="sub">Simulador de análise de energia (power analysis) sobre um AES-128 simulado: o que um atacante consegue descobrir, com e sem mascaramento.</div>
+    </div>
+  </div>
+  <button class="iconbtn" id="themeBtn" type="button" aria-label="Alternar entre tema claro e escuro">
+    <svg id="themeIc" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"></svg>
+    <span id="themeTx"></span>
+  </button>
+</header>
+
+<section class="controls" aria-label="Configuração da simulação">
+  <div class="field">
+    <span class="lbl" id="verLbl">Versão do algoritmo</span>
+    <div class="seg" id="versionGroup" role="group" aria-labelledby="verLbl">
+      <button type="button" data-v="unprotected" class="on" aria-pressed="true">Sem proteção</button>
+      <button type="button" data-v="masked" aria-pressed="false">Com mascaramento</button>
+    </div>
+  </div>
+  <div class="field">
+    <label for="numTraces">Execuções simuladas</label>
+    <div class="num"><input type="number" id="numTraces" value="2000" min="50" max="20000" step="50" inputmode="numeric"><span>execuções</span></div>
+    <div class="hint">Entre 50 e 20 000. Valor inválido usa 2000.</div>
+  </div>
+  <button class="run" id="runBtn" type="button"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"/></svg><span id="runTx">Rodar simulação</span></button>
+</section>
+
+<main id="results" aria-live="polite">
+  <div class="empty"><b>Nenhuma simulação executada</b>Escolha a versão, defina o número de execuções e clique em “Rodar simulação”. O resultado aparece aqui, com a conclusão logo no topo.</div>
+</main>
+
+<footer>Modelo de consumo por peso de Hamming com ruído gaussiano simulado: aproximação usual na literatura de análise de energia, não medição de hardware real. O AES-128 é implementado no próprio navegador e validado contra os vetores do FIPS-197. Todos os cálculos ocorrem no navegador, sem envio de dados.</footer>
+</div>
+
+<script>
+const versionGroup = document.getElementById('versionGroup');
+let version = 'unprotected';
+versionGroup.addEventListener('click', e=>{
+  const b = e.target.closest('button'); if(!b) return;
+  [...versionGroup.children].forEach(c=>{ c.classList.remove('on'); c.setAttribute('aria-pressed','false'); });
+  b.classList.add('on'); b.setAttribute('aria-pressed','true'); version = b.dataset.v;
+});
+
+/* Tema: segue o sistema e pode ser alternado no botão do cabeçalho */
+const ICONS = {
+  moon:'<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>',
+  sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>'
+};
+const mq = window.matchMedia ? window.matchMedia('(prefers-color-scheme: light)') : null;
+let theme = (mq && mq.matches) ? 'light' : 'dark';
+let redrawAll = () => {};
+function applyTheme(){
+  document.documentElement.setAttribute('data-theme', theme);
+  document.getElementById('themeIc').innerHTML = theme==='dark' ? ICONS.sun : ICONS.moon;
+  document.getElementById('themeTx').textContent = theme==='dark' ? 'Tema claro' : 'Tema escuro';
+  redrawAll();
+}
+document.getElementById('themeBtn').addEventListener('click', ()=>{ theme = theme==='dark' ? 'light' : 'dark'; applyTheme(); });
+if(mq && mq.addEventListener) mq.addEventListener('change', ev=>{ theme = ev.matches ? 'light' : 'dark'; applyTheme(); });
+
+/* ====================== Parâmetros do experimento ====================== */
+// Chave de 128 bits do dispositivo simulado. O byte alvo dos ataques é o primeiro (0x53).
+const KEY = Uint8Array.from([0x53,0x43,0x41,0x2d,0x4c,0x61,0x62,0x2d,0x6b,0x65,0x79,0x21,0xa7,0x19,0xc3,0x5e]);
+const SIGMA = 1.1;                    // desvio padrão do ruído gaussiano
+const BASE  = {ARK:0, SB:3, MC:6};    // nível médio de energia de cada tipo de operação
+const WIN   = 64;                     // janela de aquisição: AddRoundKey inicial + 1ª rodada (4 operações x 16 bytes)
+let secretKeyRef = KEY[0];
+
+function hw(x){ let c=0; while(x){ c+=x&1; x>>=1; } return c; }
+function randn(){ let u=1-Math.random(), v=Math.random(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
+
+/* ====================== AES-128 de referência (FIPS-197) ====================== */
+const xtime = a => ((a<<1) ^ ((a&0x80) ? 0x1b : 0)) & 0xFF;
+
+function gmul(a, b){            // multiplicação em GF(2^8) com o polinômio x^8+x^4+x^3+x+1
+  let p = 0;
+  for(let i=0;i<8;i++){ if(b&1) p ^= a; const hi = a&0x80; a = (a<<1)&0xFF; if(hi) a ^= 0x1b; b >>= 1; }
+  return p;
+}
+
+function buildSBox(){           // inverso multiplicativo em GF(2^8) + transformação afim (FIPS-197, 5.1.1)
+  const inv = new Uint8Array(256);
+  for(let x=1;x<256;x++){ for(let y=1;y<256;y++){ if(gmul(x,y)===1){ inv[x]=y; break; } } }
+  const rotl = (v,n) => ((v<<n)|(v>>(8-n))) & 0xFF;
+  const s = new Uint8Array(256);
+  for(let x=0;x<256;x++){ const b=inv[x]; s[x] = b ^ rotl(b,1) ^ rotl(b,2) ^ rotl(b,3) ^ rotl(b,4) ^ 0x63; }
+  return s;
+}
+const SBOX = buildSBox();
+
+function keyExpansion(key){     // 11 chaves de rodada de 16 bytes (176 bytes)
+  const w = new Uint8Array(176); w.set(key);
+  let rcon = 1;
+  for(let i=16;i<176;i+=4){
+    let t0=w[i-4], t1=w[i-3], t2=w[i-2], t3=w[i-1];
+    if(i%16===0){
+      const r0=SBOX[t1]^rcon, r1=SBOX[t2], r2=SBOX[t3], r3=SBOX[t0];
+      t0=r0; t1=r1; t2=r2; t3=r3; rcon = xtime(rcon);
+    }
+    w[i]=w[i-16]^t0; w[i+1]=w[i-15]^t1; w[i+2]=w[i-14]^t2; w[i+3]=w[i-13]^t3;
+  }
+  return w;
+}
+
+function shiftRows(s){          // estado em ordem de coluna: s[linha + 4*coluna]
+  const t = s.slice();
+  for(let r=0;r<4;r++) for(let c=0;c<4;c++) s[r+4*c] = t[r+4*((c+r)%4)];
+}
+
+function mixColumns(s){
+  for(let c=0;c<4;c++){
+    const i=4*c, a0=s[i], a1=s[i+1], a2=s[i+2], a3=s[i+3];
+    s[i]   = xtime(a0) ^ (xtime(a1)^a1) ^ a2 ^ a3;
+    s[i+1] = a0 ^ xtime(a1) ^ (xtime(a2)^a2) ^ a3;
+    s[i+2] = a0 ^ a1 ^ xtime(a2) ^ (xtime(a3)^a3);
+    s[i+3] = (xtime(a0)^a0) ^ a1 ^ a2 ^ xtime(a3);
+  }
+}
+
+/* Executa o AES-128 sobre um bloco. Opções:
+   rounds  - número de rodadas executadas (padrão 10)
+   masked  - mascaramento booleano de 1ª ordem de todo o estado (S-box com máscara de saída nova)
+   onOp    - função chamada após cada operação ('ARK', 'SB', 'MC') com o estado e a máscara atuais */
+function aesRun(pt, rk, opts){
+  opts = opts || {};
+  const rounds = opts.rounds || 10, masked = !!opts.masked, onOp = opts.onOp;
+  const st = Uint8Array.from(pt), mk = new Uint8Array(16);
+  const rnd = () => Math.floor(Math.random()*256);
+  if(masked) for(let i=0;i<16;i++) mk[i] = rnd();
+  const emit = kind => { if(onOp) onOp(kind, st, mk); };
+
+  for(let i=0;i<16;i++) st[i] ^= rk[i];
+  emit('ARK');
+  for(let r=1;r<=rounds;r++){
+    for(let i=0;i<16;i++){ st[i] = SBOX[st[i]]; if(masked) mk[i] = rnd(); }
+    emit('SB');
+    shiftRows(st); if(masked) shiftRows(mk);
+    if(r<10){ mixColumns(st); if(masked) mixColumns(mk); emit('MC'); }
+    for(let i=0;i<16;i++) st[i] ^= rk[16*r+i];
+    emit('ARK');
+  }
+  return st;
+}
+
+const toHex = a => Array.from(a, b => b.toString(16).padStart(2,'0')).join('');
+const fromHex = s => Uint8Array.from(s.match(/../g), h => parseInt(h,16));
+
+function aesSelfTest(){         // validação contra os vetores do FIPS-197 e consistência da versão mascarada
+  const vet = [
+    {nome:'FIPS-197, Apêndice B',   key:'2b7e151628aed2a6abf7158809cf4f3c', pt:'3243f6a8885a308d313198a2e0370734', ct:'3925841d02dc09fbdc118597196a0b32'},
+    {nome:'FIPS-197, Apêndice C.1', key:'000102030405060708090a0b0c0d0e0f', pt:'00112233445566778899aabbccddeeff', ct:'69c4e0d86a7b0430d8cdb78070b4c55a'}
+  ];
+  const res = vet.map(v => {
+    const got = toHex(aesRun(fromHex(v.pt), keyExpansion(fromHex(v.key))));
+    return {nome:v.nome, esperado:v.ct, obtido:got, ok:got===v.ct};
+  });
+  const rk = keyExpansion(KEY); let igual = true;
+  for(let i=0;i<100;i++){
+    const pt = Uint8Array.from({length:16}, () => Math.floor(Math.random()*256));
+    if(toHex(aesRun(pt,rk)) !== toHex(aesRun(pt,rk,{masked:true}))){ igual = false; break; }
+  }
+  res.push({nome:'AES mascarado = AES de referência (100 blocos aleatórios)', esperado:'iguais', obtido: igual?'iguais':'diferentes', ok:igual});
+  return res;
+}
+
+/* ====================== Geração das medições simuladas ====================== */
+// Uma amostra de energia por byte processado: nível da operação + peso de Hamming do valor (com máscara) + ruído.
+function randomBlock(){ return Uint8Array.from({length:16}, () => Math.floor(Math.random()*256)); }
+
+function simulateTrace(masked){          // criptografia completa (10 rodadas) para a análise simples
+  const rk = keyExpansion(KEY), s = [], labels = [];
+  aesRun(randomBlock(), rk, {masked, onOp:(kind, st, mk) => {
+    const base = BASE[kind];
+    for(let b=0;b<16;b++) s.push(base + hw(st[b]^mk[b]) + randn()*SIGMA);
+    labels.push(kind);
+  }});
+  return {samples:Float64Array.from(s), labels};
+}
+
+function acquire(n, masked){             // n execuções; janela de WIN amostras (AddRoundKey inicial + 1ª rodada)
+  const rk = keyExpansion(KEY);
+  const plain = new Uint8Array(n), traces = new Float64Array(n*WIN);
+  for(let i=0;i<n;i++){
+    const pt = randomBlock(); plain[i] = pt[0];
+    let k = i*WIN;
+    aesRun(pt, rk, {masked, rounds:1, onOp:(kind, st, mk) => {
+      const base = BASE[kind];
+      for(let b=0;b<16;b++) traces[k++] = base + hw(st[b]^mk[b]) + randn()*SIGMA;
+    }});
+  }
+  return {plain, traces};
+}
+
+/* ====================== Análises ====================== */
+function makeCheckpoints(n){             // pontos de verificação: de 5 em 5 até 100 e depois crescimento geométrico
+  const set = new Set();
+  for(let c=10;c<=Math.min(n,100);c+=5) set.add(c);
+  if(n>100){ const K=20; for(let k=1;k<=K;k++) set.add(Math.round(100*Math.pow(n/100,k/K))); }
+  set.add(n);
+  return [...set].filter(c => c>=2 && c<=n).sort((a,b) => a-b);
+}
+
+// CPA sobre o byte 0: hipótese h -> HW(S[p0 ^ h]); correlação de Pearson com cada amostra da janela (somas acumuladas)
+function runAttack(plain, traces, checkpoints){
+  const n = plain.length, W = WIN;
+  const hyp = new Uint8Array(256*256);
+  for(let h=0;h<256;h++) for(let p=0;p<256;p++) hyp[h*256+p] = hw(SBOX[p^h]);
+  const sumH = new Float64Array(256), sumH2 = new Float64Array(256), sumHS = new Float64Array(256*W);
+  const sumS = new Float64Array(W), sumS2 = new Float64Array(W);
+  const corrCorrect = [], corrBestWrong = [], leaders = [];
+  let ci = 0;
+  for(let i=0;i<n;i++){
+    const p = plain[i], off = i*W;
+    for(let j=0;j<W;j++){ const s = traces[off+j]; sumS[j] += s; sumS2[j] += s*s; }
+    for(let h=0;h<256;h++){
+      const v = hyp[h*256+p]; sumH[h] += v; sumH2[h] += v*v;
+      const b = h*W;
+      for(let j=0;j<W;j++) sumHS[b+j] += v*traces[off+j];
+    }
+    if(ci<checkpoints.length && i+1===checkpoints[ci]){
+      const m = i+1;
+      let best=-1, bestC=-Infinity, second=-Infinity, cOk=0;
+      for(let h=0;h<256;h++){
+        const vh = m*sumH2[h] - sumH[h]*sumH[h];
+        let mx = -Infinity;
+        for(let j=0;j<W;j++){
+          const vs = m*sumS2[j] - sumS[j]*sumS[j];
+          const den = Math.sqrt(vh*vs);
+          const r = den>0 ? (m*sumHS[h*W+j] - sumH[h]*sumS[j])/den : 0;
+          if(r>mx) mx = r;
+        }
+        if(h===secretKeyRef) cOk = mx;
+        if(mx>bestC){ second=bestC; bestC=mx; best=h; } else if(mx>second){ second=mx; }
+      }
+      corrCorrect.push(Math.max(0, cOk));
+      corrBestWrong.push(Math.max(0, best===secretKeyRef ? second : bestC));
+      leaders.push(best===secretKeyRef);
+      ci++;
+    }
+  }
+  let revealAt = null;
+  for(let j=leaders.length-1; j>=0 && leaders[j]; j--) revealAt = checkpoints[j];
+  return {corrCorrect, corrBestWrong, revealAt};
+}
+
+// Teste t de Welch em cada amostra da janela; grupos pelo bit menos significativo do texto de entrada
+function tvla(plain, traces){
+  const W = WIN, n = plain.length;
+  const s = [new Float64Array(W), new Float64Array(W)], q = [new Float64Array(W), new Float64Array(W)], cnt = [0,0];
+  for(let i=0;i<n;i++){
+    const g = plain[i]&1; cnt[g]++;
+    const off = i*W;
+    for(let j=0;j<W;j++){ const x = traces[off+j]; s[g][j] += x; q[g][j] += x*x; }
+  }
+  let tBest = 0, jBest = 0;
+  for(let j=0;j<W;j++){
+    const m0 = s[0][j]/cnt[0], m1 = s[1][j]/cnt[1];
+    const v0 = (q[0][j]-cnt[0]*m0*m0)/(cnt[0]-1), v1 = (q[1][j]-cnt[1]*m1*m1)/(cnt[1]-1);
+    const t = (m0-m1)/Math.sqrt(v0/cnt[0] + v1/cnt[1]);
+    if(Math.abs(t)>Math.abs(tBest)){ tBest = t; jBest = j; }
+  }
+  return {t:tBest, sample:jBest};
+}
+
+// Análise simples (SPA): uma única medição. Agrupa os blocos de 16 amostras em 3 níveis de energia (k-médias)
+// e lê a sequência de operações; o número de blocos de SubBytes é o número de rodadas.
+function spaAnalyze(trace){
+  const {samples, labels} = trace, B = samples.length/16;
+  const means = [];
+  for(let b=0;b<B;b++){ let s=0; for(let i=0;i<16;i++) s += samples[16*b+i]; means.push(s/16); }
+  const lo = Math.min(...means), hi = Math.max(...means);
+  const c = [lo, (lo+hi)/2, hi], cls = new Array(B).fill(0);
+  for(let it=0; it<50; it++){
+    for(let b=0;b<B;b++){ let k=0, d=Infinity; for(let q=0;q<3;q++){ const dd=Math.abs(means[b]-c[q]); if(dd<d){ d=dd; k=q; } } cls[b]=k; }
+    const sum=[0,0,0], cn=[0,0,0];
+    for(let b=0;b<B;b++){ sum[cls[b]] += means[b]; cn[cls[b]]++; }
+    let changed = false;
+    for(let q=0;q<3;q++){ if(cn[q]){ const v = sum[q]/cn[q]; if(Math.abs(v-c[q])>1e-9){ c[q]=v; changed=true; } } }
+    if(!changed) break;
+  }
+  const NAMES = ['ARK','SB','MC'];
+  const pred = cls.map(k => NAMES[k]);
+  let ok = 0; for(let b=0;b<B;b++) if(pred[b]===labels[b]) ok++;
+  const rounds = pred.filter(x => x==='SB').length;
+  return {pred, blocks:B, accuracy:ok/B, rounds, keyBits: rounds===10 ? 128 : rounds===12 ? 192 : rounds===14 ? 256 : null};
+}
+
+/* ====================== Visualização ====================== */
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const fmt = (x,d=2) => x.toLocaleString('pt-BR',{minimumFractionDigits:d, maximumFractionDigits:d});
+const fmtInt = x => x.toLocaleString('pt-BR');
+const OPNAME = {ARK:'AddRoundKey', SB:'SubBytes', MC:'MixColumns'};
+
+function setupCanvas(canvas){
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio||1;
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  canvas.width = Math.round(w*dpr); canvas.height = Math.round(h*dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,w,h);
+  return {ctx,w,h};
+}
+
+/* Traço completo (SPA): faixas por operação identificada, rodadas numeradas */
+function drawTrace(canvas, samples, pred){
+  const {ctx,w,h} = setupCanvas(canvas);
+  const pad = {l:34, r:8, t:20, b:24};
+  const plotW = w-pad.l-pad.r, plotH = h-pad.t-pad.b;
+  let lo = Infinity, hi = -Infinity;
+  for(const v of samples){ if(v<lo) lo=v; if(v>hi) hi=v; }
+  lo = Math.floor(lo); hi = Math.ceil(hi);
+  const N = samples.length, B = pred.length;
+  const X = i => pad.l + plotW*(i/(N-1));
+  const Y = v => pad.t + plotH*(1-(v-lo)/((hi-lo)||1));
+  const color = {ARK:css('--slate'), SB:css('--accent'), MC:css('--amber')};
+  const bw = plotW/B;
+  ctx.font = '10px '+css('--mono');
+  for(let b=0;b<B;b++){
+    ctx.globalAlpha = .08; ctx.fillStyle = color[pred[b]];
+    ctx.fillRect(pad.l+bw*b, pad.t, bw, plotH); ctx.globalAlpha = 1;
+  }
+  ctx.strokeStyle = css('--line'); ctx.lineWidth = 1; ctx.beginPath();
+  for(let i=0;i<=4;i++){ const y = Math.round(pad.t+plotH*i/4)+.5; ctx.moveTo(pad.l,y); ctx.lineTo(w-pad.r,y); }
+  ctx.stroke();
+  ctx.fillStyle = css('--faint'); ctx.textAlign = 'right';
+  for(let i=0;i<=4;i++){ ctx.fillText(fmt(hi-(hi-lo)*i/4,0), pad.l-6, pad.t+plotH*i/4+3); }
+  ctx.textAlign = 'center';
+  let round = 0;
+  for(let b=0;b<B;b++){
+    const cx = pad.l+bw*(b+.5);
+    if(pred[b]==='SB'){ round++; if(bw>=22){ ctx.fillStyle = css('--accent'); ctx.fillText('R'+round, cx, h-8); } }
+    if(bw>=30){ ctx.fillStyle = css('--faint'); ctx.fillText(pred[b], cx, pad.t-7); }
+  }
+  for(let b=0;b<B;b++){
+    ctx.strokeStyle = color[pred[b]]; ctx.lineWidth = 1.4; ctx.lineJoin = 'round'; ctx.beginPath();
+    const a = Math.max(0,16*b-1), z = 16*b+15;
+    for(let i=a;i<=z;i++){ i===a ? ctx.moveTo(X(i),Y(samples[i])) : ctx.lineTo(X(i),Y(samples[i])); }
+    ctx.stroke();
+  }
+  canvas._g = {pad, plotW, N, B, X, Y};
+}
+
+/* Correlação por hipótese: eixo x logarítmico, área sob a chave correta e marcador do ponto de revelação */
+function drawCorr(canvas, d){
+  const {ctx,w,h} = setupCanvas(canvas);
+  const pad = {l:40, r:92, t:14, b:28};
+  const plotW = w-pad.l-pad.r, plotH = h-pad.t-pad.b;
+  const xs = d.checkpoints, n = d.n, xMin = xs[0];
+  let yMax = 0.1; d.ok.concat(d.wrong).forEach(v=>{ if(v>yMax) yMax=v; });
+  yMax = Math.min(1, Math.ceil(yMax*1.12*20)/20);
+  const xp = v => pad.l + plotW*Math.log(v/xMin)/Math.log(n/xMin);
+  const yp = v => pad.t + plotH*(1-v/yMax);
+  ctx.font = '10px '+css('--mono');
+  ctx.strokeStyle = css('--line'); ctx.lineWidth = 1; ctx.beginPath();
+  for(let i=0;i<=4;i++){ const y = Math.round(pad.t+plotH*i/4)+.5; ctx.moveTo(pad.l,y); ctx.lineTo(pad.l+plotW,y); }
+  ctx.stroke();
+  ctx.fillStyle = css('--faint'); ctx.textAlign = 'right';
+  for(let i=0;i<=4;i++){ ctx.fillText(fmt(yMax*(1-i/4),2), pad.l-7, pad.t+plotH*i/4+3); }
+  ctx.textAlign = 'center';
+  for(const t of [10,100,1000,10000,20000]){ if(t>=xMin && t<=n){ ctx.fillText(fmtInt(t), xp(t), h-10); } }
+  const line = (data, color, wd) => {
+    ctx.strokeStyle = color; ctx.lineWidth = wd; ctx.lineJoin = 'round'; ctx.beginPath();
+    data.forEach((v,i)=>{ const x = xp(xs[i]), y = yp(v); i? ctx.lineTo(x,y) : ctx.moveTo(x,y); });
+    ctx.stroke();
+  };
+  // área sob a chave correta
+  const g = ctx.createLinearGradient(0,pad.t,0,pad.t+plotH);
+  g.addColorStop(0, css('--accent')); g.addColorStop(1, 'transparent');
+  ctx.globalAlpha = .16; ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(xp(xs[0]), yp(0));
+  d.ok.forEach((v,i)=> ctx.lineTo(xp(xs[i]), yp(v))); ctx.lineTo(xp(xs.at(-1)), yp(0)); ctx.closePath(); ctx.fill(); ctx.globalAlpha = 1;
+  line(d.wrong, css('--slate'), 1.6);
+  line(d.ok, css('--accent'), 2.4);
+  if(d.revealAt){
+    const x = xp(d.revealAt);
+    ctx.setLineDash([4,4]); ctx.strokeStyle = css('--danger'); ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x,pad.t); ctx.lineTo(x,pad.t+plotH); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = css('--danger'); ctx.textAlign = x>pad.l+plotW-60 ? 'right' : 'left';
+    ctx.fillText('chave revelada: '+fmtInt(d.revealAt), x+(ctx.textAlign==='left'?6:-6), pad.t+10);
+  }
+  // rótulos diretos no fim das linhas
+  const xe = pad.l+plotW+8;
+  ctx.textAlign = 'left'; ctx.font = '600 11px '+css('--sans');
+  let yo = yp(d.ok.at(-1)), yw = yp(d.wrong.at(-1));
+  if(Math.abs(yo-yw)<14){ if(yo<=yw){ yo-=7; yw+=7; } else { yo+=7; yw-=7; } }
+  ctx.fillStyle = css('--accent'); ctx.fillText('correta '+fmt(d.ok.at(-1)), xe, yo+4);
+  ctx.fillStyle = css('--sub'); ctx.fillText('errada '+fmt(d.wrong.at(-1)), xe, yw+4);
+  canvas._g = {pad, plotW, plotH, xp, xs};
+}
+
+/* Tooltips por ponteiro (mouse e toque) */
+function attachTip(plot, canvas, textFor, xFor){
+  const tip = plot.querySelector('.tip'), guide = plot.querySelector('.guide');
+  const hide = () => { tip.classList.remove('show'); guide.classList.remove('show'); };
+  const move = ev => {
+    const g = canvas._g; if(!g) return;
+    const r = canvas.getBoundingClientRect(), px = ev.clientX - r.left;
+    if(px<g.pad.l || px>g.pad.l+g.plotW){ hide(); return; }
+    const hit = textFor(px, g); if(!hit){ hide(); return; }
+    tip.innerHTML = hit.html; tip.classList.add('show');
+    const gx = xFor(hit, g);
+    guide.style.left = gx+'px'; guide.style.height = (canvas.clientHeight - g.pad.b)+'px'; guide.classList.add('show');
+    const tw = tip.offsetWidth; let tx = gx + 12; if(tx+tw > r.width) tx = gx - tw - 12;
+    tip.style.left = Math.max(0,tx)+'px'; tip.style.top = '8px';
+  };
+  plot.addEventListener('pointermove', move); plot.addEventListener('pointerdown', move);
+  plot.addEventListener('pointerleave', hide);
+}
+
+function opAt(j){
+  const nomes = ['AddRoundKey inicial','SubBytes (rodada 1)','MixColumns (rodada 1)','AddRoundKey (rodada 1)'];
+  return nomes[Math.floor(j/16)] + ', byte ' + (j%16);
+}
+
+const ICON = {
+  alert:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>',
+  shield:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>'
+};
+const VLABEL = {unprotected:'Sem proteção', masked:'Com mascaramento'};
+const lastRun = {unprotected:null, masked:null};
+let current = null;
+
+function renderCompare(){
+  const row = v => {
+    const r = lastRun[v], cur = current && current.version===v ? ' class="cur"' : '';
+    if(!r) return `<tr><td>${VLABEL[v]}</td><td class="mut" colspan="4">ainda não executada</td></tr>`;
+    return `<tr${cur}><td>${VLABEL[v]}</td><td>${fmtInt(r.n)}</td>`+
+      `<td><span class="chip ${r.revealAt?'tone-danger':'tone-safe'}">${r.revealAt?'recuperada em '+fmtInt(r.revealAt):'não recuperada'}</span></td>`+
+      `<td>${fmt(r.t)}</td><td>${r.rounds}</td></tr>`;
+  };
+  return `<table class="cmp"><thead><tr><th>Versão</th><th>Execuções</th><th>Chave</th><th>|t|</th><th>Rodadas (SPA)</th></tr></thead><tbody>${row('unprotected')}${row('masked')}</tbody></table>`;
+}
+
+function render(R){
+  const {version:v, n, revealAt, corrCorrect, corrBestWrong, checkpoints, lk, spa, tests, trace} = R;
+  current = R;
+  const leak = Math.abs(lk.t) > 4.5, aesOk = tests.every(x=>x.ok);
+  const okEnd = corrCorrect.at(-1), wrEnd = corrBestWrong.at(-1);
+  const tone = revealAt ? 'danger' : 'safe';
+  const headline = revealAt
+    ? `A chave foi recuperada com ${fmtInt(revealAt)} de ${fmtInt(n)} execuções`
+    : `A chave não foi recuperada em ${fmtInt(n)} execuções`;
+  const lead = revealAt
+    ? `${VLABEL[v]}: o ataque por correlação identificou o byte 0x${secretKeyRef.toString(16).toUpperCase()} e o teste de vazamento ${leak?'confirmou':'não confirmou'} dependência entre energia e dados.`
+    : `${VLABEL[v]}: nenhuma hipótese de chave se destacou e o teste de vazamento ${leak?'ainda apontou dependência':'não apontou vazamento'}.`;
+  const tmax = Math.max(15, Math.abs(lk.t)*1.15), tw = Math.min(100, Math.abs(lk.t)/tmax*100), tm = 4.5/tmax*100;
+  const spaFull = spa.rounds===10 && spa.accuracy===1;
+  const corrInsight = revealAt
+    ? `A hipótese correta passa a liderar com <b>${fmtInt(revealAt)} execuções</b> e termina com correlação <b>${fmt(okEnd)}</b>; a melhor hipótese errada fica em <b>${fmt(wrEnd)}</b>. Quanto maior a distância entre as linhas, mais clara é a chave.`
+    : `A chave correta termina com correlação <b>${fmt(okEnd)}</b>, <b>abaixo</b> da melhor hipótese errada (<b>${fmt(wrEnd)}</b>): as linhas se misturam e a chave não se destaca, mesmo com mais execuções.`;
+  const spaInsight = `Uma única medição já mostra a estrutura: <b>${spa.rounds} rodadas</b>${spa.keyBits?` (AES-${spa.keyBits})`:''}, com <b>${fmt(spa.accuracy*100,0)}%</b> dos blocos classificados corretamente. As operações se distinguem pelo nível de energia; o valor da chave, não.`;
+  const results = document.getElementById('results');
+  results.innerHTML = `
+    <div class="fade">
+      <section class="banner tone-${tone}" id="banner">
+        <div class="ic">${revealAt?ICON.alert:ICON.shield}</div>
+        <div><h2>${headline}</h2><p>${lead}</p></div>
+      </section>
+      <section class="kpis" aria-label="Indicadores">
+        <article class="kpi tone-${tone}" id="kpiReveal">
+          <div class="k">Execuções até revelar a chave</div>
+          <div class="top2"><div class="v">${revealAt?fmtInt(revealAt):'—'}<small>de ${fmtInt(n)}</small></div><span class="chip">${revealAt?'recuperada':'não recuperada'}</span></div>
+          <div class="d">Byte alvo 0x${secretKeyRef.toString(16).toUpperCase()}. Contagem a partir da qual a hipótese correta lidera até o fim.</div>
+        </article>
+        <article class="kpi tone-${leak?'danger':'safe'}" id="kpiLeak">
+          <div class="k">Teste de vazamento</div>
+          <div class="top2"><div class="v">${fmt(Math.abs(lk.t))}<small>maior |t|</small></div><span class="chip">${leak?'vazamento detectado':'nenhum vazamento'}</span></div>
+          <div class="meter" role="img" aria-label="Estatística t ${fmt(Math.abs(lk.t))} contra o limiar 4,5"><i data-w="${tw}"></i><b style="left:${tm}%"></b></div>
+          <div class="meter-l"><span>0</span><span>limiar 4,5</span><span>${fmt(tmax,0)}</span></div>
+          <div class="d">Maior valor em ${opAt(lk.sample)}.</div>
+        </article>
+        <article class="kpi tone-warn" id="kpiSpa">
+          <div class="k">Análise simples (SPA)</div>
+          <div class="top2"><div class="v">${spa.rounds}<small>rodadas</small></div><span class="chip">${spaFull?'estrutura exposta':'estrutura parcial'}</span></div>
+          <div class="d">${spa.keyBits?`AES-${spa.keyBits} identificado. `:''}${fmt(spa.accuracy*100,0)}% dos blocos classificados. A chave não é revelada por esta análise.</div>
+        </article>
+        <article class="kpi tone-${aesOk?'safe':'danger'}" id="kpiAes">
+          <div class="k">AES-128 (FIPS-197)</div>
+          <div class="top2"><div class="v">${tests.filter(x=>x.ok).length}<small>de ${tests.length} verificações</small></div><span class="chip">${aesOk?'validado':'falhou'}</span></div>
+          <div class="d">A cifra usada nos ataques confere com os vetores do padrão.</div>
+        </article>
+      </section>
+      <section class="grid">
+        <article class="card" id="cardCorr">
+          <h3>Correlação por hipótese de chave</h3>
+          <p class="insight">${corrInsight}</p>
+          <div class="plot" id="plotCorr"><canvas id="cCorr" height="250" role="img" aria-label="Correlação da chave correta e da melhor hipótese errada ao longo das execuções"></canvas><div class="guide"></div><div class="tip"></div></div>
+          <div class="legend"><span><i class="sw" style="background:var(--accent)"></i>chave correta</span><span><i class="sw" style="background:var(--slate)"></i>melhor hipótese errada</span><span>eixo horizontal: execuções (escala logarítmica)</span></div>
+        </article>
+        <article class="card" id="cardSpa">
+          <h3>Traço de uma criptografia completa (SPA)</h3>
+          <p class="insight">${spaInsight}</p>
+          <div class="plot" id="plotSpa"><canvas id="cTrace" height="190" role="img" aria-label="Traço de energia de 10 rodadas do AES com as operações identificadas"></canvas><div class="guide"></div><div class="tip"></div></div>
+          <div class="legend"><span><i class="sw" style="background:var(--slate)"></i>AddRoundKey</span><span><i class="sw" style="background:var(--accent)"></i>SubBytes</span><span><i class="sw" style="background:var(--amber)"></i>MixColumns</span><span>R1 a R10: rodadas, contadas pelos blocos de SubBytes</span></div>
+        </article>
+        <article class="card" id="cardCmp">
+          <h3>Comparação entre versões</h3>
+          <p class="insight">Última execução de cada versão nesta sessão. Rode as duas para comparar sob as mesmas condições.</p>
+          <div id="cmpBox">${renderCompare()}</div>
+        </article>
+        <details class="card" id="cardAes">
+          <summary><h3>Validação do AES-128 (FIPS-197)</h3><span class="chev" aria-hidden="true">▾</span></summary>
+          <div class="body">
+            <ul class="tests">
+              ${tests.map(x => `<li><span class="mk ${x.ok?'ok':'bad'}">${x.ok?'OK':'ERRO'}</span><span>${x.nome}${x.esperado.length>10 ? ' <code>'+x.obtido+'</code>' : ''}</span></li>`).join('')}
+            </ul>
+          </div>
+        </details>
+      </section>
+    </div>`;
+  requestAnimationFrame(()=>{ const i = results.querySelector('.meter i'); if(i) i.style.width = i.dataset.w+'%'; });
+  paintCharts();
+  attachTip(document.getElementById('plotCorr'), document.getElementById('cCorr'),
+    (px,g)=>{ let best=0, bd=Infinity; g.xs.forEach((c,i)=>{ const d=Math.abs(g.xp(c)-px); if(d<bd){bd=d;best=i;} });
+      return {i:best, html:`<b>${fmtInt(g.xs[best])} execuções</b><br><span style="color:var(--accent)">correta ${fmt(corrCorrect[best])}</span><br><span style="color:var(--sub)">melhor errada ${fmt(corrBestWrong[best])}</span>`}; },
+    (hit,g)=> g.xp(g.xs[hit.i]));
+  attachTip(document.getElementById('plotSpa'), document.getElementById('cTrace'),
+    (px,g)=>{ const i = Math.max(0,Math.min(g.N-1, Math.round((px-g.pad.l)/g.plotW*(g.N-1)))), b = Math.floor(i/16);
+      let rd = 0; for(let k=0;k<=b;k++) if(spa.pred[k]==='SB') rd++;
+      return {i, html:`<b>${OPNAME[spa.pred[b]]}</b>${spa.pred[b]==='SB'?' (rodada '+rd+')':''}<br>byte ${i%16} · energia ${fmt(trace.samples[i])}`}; },
+    (hit,g)=> g.X(hit.i));
+}
+
+function paintCharts(){
+  if(!current) return;
+  const c1 = document.getElementById('cCorr'), c2 = document.getElementById('cTrace');
+  if(c1) drawCorr(c1, {checkpoints:current.checkpoints, ok:current.corrCorrect, wrong:current.corrBestWrong, revealAt:current.revealAt, n:current.n});
+  if(c2) drawTrace(c2, current.trace.samples, current.spa.pred);
+}
+redrawAll = paintCharts;
+let rz; window.addEventListener('resize', ()=>{ clearTimeout(rz); rz = setTimeout(paintCharts, 80); });
+
+function setBusy(on){
+  const btn = document.getElementById('runBtn');
+  btn.disabled = on; document.getElementById('runTx').textContent = on ? 'Calculando…' : 'Rodar simulação';
+}
+
+document.getElementById('runBtn').addEventListener('click', ()=>{
+  setBusy(true);
+  document.getElementById('results').innerHTML = '<div class="empty"><b>Calculando…</b>Executando o AES, gerando as medições e correlacionando as 256 hipóteses de chave.</div>';
+  setTimeout(()=>{
+    const n = Math.max(50, Math.min(20000, parseInt(document.getElementById('numTraces').value)||2000));
+    const masked = version==='masked';
+    const tests = aesSelfTest();
+    const trace = simulateTrace(masked);
+    const spa = spaAnalyze(trace);
+    const {plain, traces} = acquire(n, masked);
+    const checkpoints = makeCheckpoints(n);
+    const {corrCorrect, corrBestWrong, revealAt} = runAttack(plain, traces, checkpoints);
+    const lk = tvla(plain, traces);
+    const R = {version, n, tests, trace, spa, checkpoints, corrCorrect, corrBestWrong, revealAt, lk};
+    lastRun[version] = {n, revealAt, t:Math.abs(lk.t), rounds:spa.rounds};
+    render(R);
+    setBusy(false);
+  }, 30);
+});
+
+applyTheme();
+</script>
+</body>
+</html>
